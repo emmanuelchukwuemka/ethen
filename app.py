@@ -6,6 +6,10 @@ This service provides Etherscan integration that can be deployed separately from
 import json
 import logging
 import os
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv()
+
 import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -49,6 +53,8 @@ class EtherscanAPIService:
         
         if not self.api_key:
             logger.warning("ETHERSCAN_API_KEY not set - Etherscan API calls will fail")
+        else:
+            logger.info("ETHERSCAN_API_KEY successfully loaded")
     
     def track_call(self):
         """Track API calls for rate limiting awareness"""
@@ -238,6 +244,7 @@ def home():
         'name': 'Etherscan API Service',
         'version': '1.0.0',
         'status': 'running',
+        'api_key_configured': bool(etherscan_service.api_key),
         'endpoints': {
             'GET /': 'This documentation',
             'GET /health': 'Health check',
