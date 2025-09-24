@@ -10,6 +10,6 @@ services:
       - key: ETHERSCAN_API_KEY
         value: 9Y21AH2N2ABCQ5FD2BDT2WYV8RCP83FB74
       - key: PORT
-        value: 8000
+        fromValue: $PORT
     domains:
       - etherscan-api-service.onrender.com
