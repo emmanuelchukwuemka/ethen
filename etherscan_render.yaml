@@ -3,8 +3,7 @@ services:
     name: etherscan-api-service
     env: python
     plan: starter
-    buildCommand: pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r etherscan_requirements.txt
-    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --worker-class sync --timeout 300 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 --preload --access-logfile - --error-logfile - etherscan_app:app
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --worker-class sync --timeout 300 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 --preload --access-logfile - --error-logfile - app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.5
