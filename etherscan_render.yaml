@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: etherscan-api-service
+    env: python
+    plan: starter
+    buildCommand: pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r etherscan_requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --worker-class sync --timeout 300 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 --preload --access-logfile - --error-logfile - etherscan_app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.5
+      - key: ETHERSCAN_API_KEY
+        value: 9Y21AH2N2ABCQ5FD2BDT2WYV8RCP83FB74
+      - key: PORT
+        value: 8000
+    domains:
+      - etherscan-api-service.onrender.com
