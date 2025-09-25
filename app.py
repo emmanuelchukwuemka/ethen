@@ -5,6 +5,8 @@ import requests
 from etherscan_nonce_tracker import EtherscanNonceTracker
 import logging
 from datetime import datetime
+import os
+import json
 
 app = Flask(__name__)
 
@@ -12,10 +14,51 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Global API call counter
-api_call_counter = 0
+# Counter file path
+COUNTER_FILE = "api_counter.json"
 counter_lock = threading.Lock()
-last_reset = datetime.now()
+
+def load_api_counter():
+    """Load API counter from file or initialize it"""
+    try:
+        if os.path.exists(COUNTER_FILE):
+            with open(COUNTER_FILE, 'r') as f:
+                data = json.load(f)
+                count = data.get('count', 0)
+                last_reset_str = data.get('last_reset', datetime.now().isoformat())
+                last_reset = datetime.fromisoformat(last_reset_str)
+                return count, last_reset
+        else:
+            return 0, datetime.now()
+    except Exception as e:
+        logger.error(f"Error loading counter: {e}")
+        return 0, datetime.now()
+
+def save_api_counter(count, last_reset):
+    """Save API counter to file"""
+    try:
+        with open(COUNTER_FILE, 'w') as f:
+            json.dump({
+                'count': count,
+                'last_reset': last_reset.isoformat()
+            }, f)
+    except Exception as e:
+        logger.error(f"Error saving counter: {e}")
+
+def increment_api_counter():
+    """Increment API call counter and save to file"""
+    with counter_lock:
+        count, last_reset = load_api_counter()
+        
+        # Reset counter every hour to prevent overflow
+        current_time = datetime.now()
+        if (current_time - last_reset).total_seconds() > 3600:
+            count = 0
+            last_reset = current_time
+        
+        count += 1
+        save_api_counter(count, last_reset)
+        return count
 
 class RateLimiter:
     def __init__(self, max_calls_per_sec):
@@ -35,24 +78,10 @@ class RateLimiter:
                     time.sleep(wait_time)
             self.calls.append(time.time())
 
-def increment_api_counter():
-    """Thread-safe increment of API call counter"""
-    global api_call_counter, counter_lock, last_reset
-    
-    with counter_lock:
-        # Reset counter every hour to prevent overflow
-        current_time = datetime.now()
-        if (current_time - last_reset).seconds > 3600:
-            api_call_counter = 0
-            last_reset = current_time
-        
-        api_call_counter += 1
-        return api_call_counter
-
 class EtherscanAPIService(EtherscanNonceTracker):
     def __init__(self):
         super().__init__()
-        self.rate_limiter = RateLimiter(20)  # Increased to 20 calls per second
+        self.rate_limiter = RateLimiter(20)  # 20 calls per second
     
     def call_etherscan_api(self, params):
         self.rate_limiter.acquire()
@@ -152,14 +181,12 @@ def home():
 
 @app.route('/health')
 def health():
-    global api_call_counter, counter_lock
-    with counter_lock:
-        current_count = api_call_counter
+    count, _ = load_api_counter()
     
     return jsonify({
         'status': 'healthy',
         'api_key_configured': bool(service.etherscan_api_key),
-        'api_calls': current_count,
+        'api_calls': count,
         'timestamp': datetime.now().isoformat()
     })
 
